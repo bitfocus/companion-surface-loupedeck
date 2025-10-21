@@ -1,0 +1,25 @@
+{
+	"$schema": "../node_modules/@companion-surface/base/assets/manifest.schema.json",
+	"type": "surface",
+	"id": "loupedeck",
+	"name": "Loupedeck",
+	"shortname": "loupedeck",
+	"description": "",
+	"version": "0.0.0",
+	"license": "MIT",
+	"repository": "git+https://github.com/bitfocus/companion-surface-loupedeck.git",
+	"bugs": "https://github.com/bitfocus/companion-surface-loupedeck/issues",
+	"maintainers": [
+		{
+			"name": "Julian Waller",
+			"email": "git@julusian.co.uk"
+		}
+	],
+	"runtime": {
+		"type": "node22",
+		"apiVersion": "0.0.0",
+		"entrypoint": "../dist/main.js"
+	},
+	"keywords": ["loupedeck"],
+	"products": ["Loupedeck"]
+}
