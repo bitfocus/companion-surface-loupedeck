@@ -20,6 +20,6 @@
 		"apiVersion": "0.0.0",
 		"entrypoint": "../dist/main.js"
 	},
-	"keywords": ["loupedeck"],
-	"products": ["Loupedeck"]
+	"keywords": ["loupedeck", "razer"],
+	"products": ["Loupedeck", "Razer Stream Controller"]
 }

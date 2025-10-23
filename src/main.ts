@@ -1,5 +1,5 @@
 import type { DiscoveredSurfaceInfo, OpenSurfaceResult, SurfaceContext, SurfacePlugin } from '@companion-surface/base'
-import { listLoupedecks, LoupedeckDeviceInfo, openLoupedeck } from '@loupedeck/node'
+import { getModelName, listLoupedecks, LoupedeckDeviceInfo, openLoupedeck } from '@loupedeck/node'
 import { generatePincodeMap } from './pincode.js'
 import { LoupedeckWrapper } from './instance.js'
 import { createSurfaceSchema } from './surface-schema.js'
@@ -21,7 +21,7 @@ const StreamDeckPlugin: SurfacePlugin<LoupedeckDeviceInfo> = {
 
 			result.push({
 				surfaceId: `loupedeck:${surfaceInfo.serialNumber}`,
-				description: surfaceInfo.model, // TODO: Better description
+				description: getModelName(surfaceInfo.model),
 				pluginInfo: surfaceInfo,
 			})
 		}
