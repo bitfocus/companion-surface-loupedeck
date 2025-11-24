@@ -1,14 +1,15 @@
 {
 	"name": "companion-surface-loupedeck",
-	"version": "0.1.2",
+	"version": "0.2.0",
 	"main": "dist/main.js",
 	"type": "module",
 	"scripts": {
 		"postinstall": "husky",
 		"format": "prettier -w .",
 		"package": "run build && companion-surface-build",
-		"build": "rimraf dist && run build:main",
+		"build": "rimraf dist && run build:main && run build:manifest-usb-ids",
 		"build:main": "tsc -p tsconfig.build.json",
+		"build:manifest-usb-ids": "node ./tools/update-usb-ids.mjs",
 		"dev": "tsc -p tsconfig.build.json --watch",
 		"lint:raw": "eslint",
 		"lint": "run lint:raw ."
@@ -19,11 +20,11 @@
 		"url": "git+https://github.com/bitfocus/companion-surface-loupedeck.git"
 	},
 	"engines": {
-		"node": "^22.14",
+		"node": "^22.18",
 		"yarn": "^4"
 	},
 	"dependencies": {
-		"@companion-surface/base": "~0.2.0",
+		"@companion-surface/base": "~0.6.1",
 		"@loupedeck/node": "^2.2.0"
 	},
 	"devDependencies": {

@@ -9,17 +9,12 @@
 	"license": "MIT",
 	"repository": "git+https://github.com/bitfocus/companion-surface-loupedeck.git",
 	"bugs": "https://github.com/bitfocus/companion-surface-loupedeck/issues",
-	"maintainers": [
-		{
-			"name": "Julian Waller",
-			"email": "git@julusian.co.uk"
-		}
-	],
-	"runtime": {
-		"type": "node22",
-		"apiVersion": "0.0.0",
-		"entrypoint": "../dist/main.js"
-	},
+	"maintainers": [{ "name": "Julian Waller", "email": "git@julusian.co.uk" }],
+	"runtime": { "type": "node22", "apiVersion": "0.0.0", "entrypoint": "../dist/main.js" },
 	"keywords": ["loupedeck", "razer"],
-	"products": ["Loupedeck", "Razer Stream Controller"]
+	"products": ["Loupedeck", "Razer Stream Controller"],
+	"usbIds": [
+		{ "vendorId": 11970, "productIds": [3, 7, 4, 6] },
+		{ "vendorId": 5426, "productIds": [3334, 3337] }
+	]
 }

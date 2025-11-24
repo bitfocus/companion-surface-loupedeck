@@ -42,6 +42,8 @@ const StreamDeckPlugin: SurfacePlugin<LoupedeckDeviceInfo> = {
 				brightness: true,
 				surfaceLayout: createSurfaceSchema(loupedeck),
 				pincodeMap: generatePincodeMap(loupedeck.modelId),
+				configFields: [],
+				location: null,
 			},
 		}
 	},

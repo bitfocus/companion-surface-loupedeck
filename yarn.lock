@@ -47,12 +47,12 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@companion-surface/base@npm:~0.2.0":
-  version: 0.2.0
-  resolution: "@companion-surface/base@npm:0.2.0"
+"@companion-surface/base@npm:~0.6.1":
+  version: 0.6.1
+  resolution: "@companion-surface/base@npm:0.6.1"
   dependencies:
     tslib: "npm:^2.8.1"
-  checksum: 10c0/526c1188d5e610da51d33b22adb2a051b38722674914bb1f1c17792dc55e83e7832ae8bea89bf92e8a09ca090678870523e5416da3ae74e5fedf707cf6c7f552
+  checksum: 10c0/5dcc936c8148703e6dfd456a720d948ddbed534eb28683fb39e99756573532ce92e924fbf3bee51afdef6e28ff53eb6ed59caa6e69066e151eaec7c4b2176633
   languageName: node
   linkType: hard
 
@@ -1212,7 +1212,7 @@ __metadata:
   resolution: "companion-surface-loupedeck@workspace:."
   dependencies:
     "@companion-module/tools": "npm:2.4.2-nightly-main-20251021-232112-36bfae9"
-    "@companion-surface/base": "npm:~0.2.0"
+    "@companion-surface/base": "npm:~0.6.1"
     "@loupedeck/node": "npm:^2.2.0"
     "@types/node": "npm:^22.18.12"
     eslint: "npm:^9.38.0"
