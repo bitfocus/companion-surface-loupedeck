@@ -46,7 +46,12 @@ export function createSurfaceSchema(device: LoupedeckDevice): SurfaceSchemaLayou
 				}
 				break
 			case 'lcd-segment':
-				// Not supported currently
+				// Fetch rgb for the touch interaction
+				surfaceLayout.controls[control.id] = {
+					row,
+					column,
+					stylePreset: 'button',
+				}
 				break
 			default:
 				assertNever(control)
