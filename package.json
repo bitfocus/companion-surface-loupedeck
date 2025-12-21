@@ -25,7 +25,7 @@
 	},
 	"dependencies": {
 		"@companion-surface/base": "~1.0.0",
-		"@loupedeck/node": "^2.2.0"
+		"@loupedeck/node": "^2.2.1"
 	},
 	"devDependencies": {
 		"@companion-module/tools": "^2.5.0",
