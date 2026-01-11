@@ -1,4 +1,4 @@
-import type { DiscoveredSurfaceInfo, OpenSurfaceResult, SurfaceContext, SurfacePlugin } from '@companion-surface/base'
+import type { DetectionSurfaceInfo, OpenSurfaceResult, SurfaceContext, SurfacePlugin } from '@companion-surface/base'
 import { getModelName, listLoupedecks, LoupedeckDeviceInfo, LoupedeckModelId, openLoupedeck } from '@loupedeck/node'
 import { generatePincodeMap } from './pincode.js'
 import { LoupedeckWrapper } from './instance.js'
@@ -12,14 +12,15 @@ const StreamDeckPlugin: SurfacePlugin<LoupedeckDeviceInfo> = {
 		// Nothing to do
 	},
 
-	scanForSurfaces: async (): Promise<DiscoveredSurfaceInfo<LoupedeckDeviceInfo>[]> => {
+	scanForSurfaces: async (): Promise<DetectionSurfaceInfo<LoupedeckDeviceInfo>[]> => {
 		const surfaceInfos = await listLoupedecks()
 
-		const result: DiscoveredSurfaceInfo<LoupedeckDeviceInfo>[] = []
+		const result: DetectionSurfaceInfo<LoupedeckDeviceInfo>[] = []
 		for (const surfaceInfo of surfaceInfos) {
 			if (!surfaceInfo.serialNumber) continue
 
 			result.push({
+				deviceHandle: surfaceInfo.path,
 				surfaceId: `loupedeck:${surfaceInfo.serialNumber}`,
 				description: getModelName(surfaceInfo.model),
 				pluginInfo: surfaceInfo,
