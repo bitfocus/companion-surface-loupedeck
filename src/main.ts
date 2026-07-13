@@ -3,6 +3,7 @@ import { getModelName, listLoupedecks, LoupedeckDeviceInfo, LoupedeckModelId, op
 import { generatePincodeMap } from './pincode.js'
 import { LoupedeckWrapper } from './instance.js'
 import { createSurfaceSchema } from './surface-schema.js'
+import { buildTouchStripConfigFields } from './config-fields.js'
 
 const StreamDeckPlugin: SurfacePlugin<LoupedeckDeviceInfo> = {
 	init: async (): Promise<void> => {
@@ -43,23 +44,15 @@ const StreamDeckPlugin: SurfacePlugin<LoupedeckDeviceInfo> = {
 			pluginInfo.model === LoupedeckModelId.LoupedeckLive ||
 			pluginInfo.model === LoupedeckModelId.RazerStreamController
 
+		const supportsSplitButtons = useTouchStrips && !!context.capabilities.supportsNonSquareButtons
+
 		return {
-			surface: new LoupedeckWrapper(surfaceId, loupedeck, context, useTouchStrips),
+			surface: new LoupedeckWrapper(surfaceId, loupedeck, context, useTouchStrips, supportsSplitButtons),
 			registerProps: {
 				brightness: true,
-				surfaceLayout: createSurfaceSchema(loupedeck),
+				surfaceLayout: createSurfaceSchema(context.capabilities, loupedeck),
 				pincodeMap: generatePincodeMap(loupedeck.modelId),
-				configFields: useTouchStrips
-					? [
-							{
-								id: 'invertFaderValues',
-								type: 'checkbox',
-								default: false,
-								label: 'Invert Fader Values',
-								tooltip: 'If set, the fader values will be inverted, with the value being between 256 and 0.',
-							},
-						]
-					: null,
+				configFields: useTouchStrips ? buildTouchStripConfigFields(supportsSplitButtons) : null,
 				transferVariables: useTouchStrips
 					? [
 							{
