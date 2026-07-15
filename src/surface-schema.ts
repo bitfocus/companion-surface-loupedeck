@@ -1,6 +1,6 @@
 import { assertNever, type HostCapabilities, type SurfaceSchemaLayoutDefinition } from '@companion-surface/base'
 import type { LoupedeckDevice } from '@loupedeck/node'
-import { getStripCellControlId } from './util.js'
+import { getStripCellControlId, SideStripXPadding, SideStripYPadding } from './util.js'
 
 export function createSurfaceSchema(
 	capabilities: HostCapabilities,
@@ -50,11 +50,12 @@ export function createSurfaceSchema(
 				}
 				break
 			case 'lcd-segment':
-				if (capabilities.supportsNonSquareButtons) {
+				if (capabilities.supportsNonSquareButtons && device.displayLeftStrip) {
 					// Register each strip as a column of non-square (drawable/pressable) button cells.
 					// The runtime fader/slider mode reuses this same layout, routing the cells to a black hole.
-					const cellWidth = device.displayLeftStrip?.width ?? 60
-					const cellHeight = (device.displayLeftStrip?.height ?? 270) / control.rowSpan
+
+					const cellWidth = device.displayLeftStrip.width - SideStripXPadding * 2
+					const cellHeight = Math.floor((device.displayLeftStrip.height - SideStripYPadding * 2) / control.rowSpan)
 
 					const presetId = `strip_${cellWidth}x${cellHeight}`
 					if (!surfaceLayout.stylePresets[presetId]) {

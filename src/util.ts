@@ -1,5 +1,8 @@
 import { LoupedeckDisplayId } from '@loupedeck/node'
 
+export const SideStripXPadding = 6 // Hidden space on either side of the side strip lcds
+export const SideStripYPadding = 6 // Hidden space above and below the side strip lcds
+
 export type StripId = 'left' | 'right'
 
 /**

@@ -9,7 +9,14 @@ import {
 	createModuleLogger,
 } from '@companion-surface/base'
 import { LoupedeckBufferFormat, LoupedeckDevice, LoupedeckDisplayId, RGBColor } from '@loupedeck/node'
-import { getStripCellControlId, parseStripCellControlId, stripIdFromScreen, type StripId } from './util.js'
+import {
+	getStripCellControlId,
+	parseStripCellControlId,
+	SideStripXPadding,
+	SideStripYPadding,
+	stripIdFromScreen,
+	type StripId,
+} from './util.js'
 import { ImageWriteQueue } from './write-queue.js'
 
 interface DisplayFaderValue {
@@ -343,9 +350,17 @@ export class LoupedeckWrapper implements SurfaceInstance {
 		const strip = this.#stripDisplay(stripId)
 		if (!strip) return
 
-		const cellHeight = Math.floor(strip.height / strip.rowSpan)
+		const cellHeight = Math.floor((strip.height - SideStripYPadding * 2) / strip.rowSpan)
 		await this.#deck
-			.drawBuffer(strip.display, image, LoupedeckBufferFormat.RGB, strip.width, cellHeight, 0, cellIndex * cellHeight)
+			.drawBuffer(
+				strip.display,
+				image,
+				LoupedeckBufferFormat.RGB,
+				strip.width - SideStripXPadding * 2,
+				cellHeight,
+				SideStripXPadding,
+				cellIndex * cellHeight + SideStripYPadding,
+			)
 			.catch((e) => {
 				this.#logger.error(`Drawing strip cell ${stripId}-${cellIndex} to loupedeck failed: ${e}`)
 			})
