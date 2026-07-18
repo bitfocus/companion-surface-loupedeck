@@ -4,9 +4,9 @@ import type { SomeCompanionInputField } from '@companion-surface/base'
  * Build the per-surface config fields for models with touch strips.
  *
  * The left/right strips can either behave as 3 stacked buttons ("split buttons", only when the host
- * supports non-square buttons) or as a legacy touch fader/slider. The layout is fixed when the surface
- * is registered, so when split buttons are supported the button cells are always registered and the
- * fader mode simply routes them to a black hole at runtime. The fader value variables and invert option
+ * supports non-square buttons) or as a legacy touch fader/slider. Both native full-height and separated
+ * square button controls are registered when supported, and the selected layout is chosen at runtime.
+ * Fader mode routes both button layouts to a black hole. The fader value variables and invert option
  * therefore always exist regardless of mode - the static-text explains when each field actually applies.
  */
 export function buildTouchStripConfigFields(supportsSplitButtons: boolean): SomeCompanionInputField[] {
@@ -34,6 +34,15 @@ export function buildTouchStripConfigFields(supportsSplitButtons: boolean): Some
 					{ id: 'buttons', label: 'Split buttons' },
 					{ id: 'slider', label: 'Fader / slider (legacy)' },
 				],
+			},
+			{
+				id: 'separatedStripButtons',
+				type: 'checkbox',
+				default: false,
+				label: 'Separated strip buttons (square)',
+				tooltip:
+					'Use centered square buttons with black, touch-inactive margins. Disable this for native full-height rendering.',
+				isVisibleExpression: `$(options:lcdStripMode) == 'buttons'`,
 			},
 		)
 	} else {
