@@ -1,6 +1,7 @@
 import { assertNever, type HostCapabilities, type SurfaceSchemaLayoutDefinition } from '@companion-surface/base'
 import type { LoupedeckDevice } from '@loupedeck/node'
-import { getStripCellControlId, SideStripXPadding, SideStripYPadding } from './util.js'
+import { getStripButtonControlId, type StripButtonLayout } from './strip-layout.js'
+import { SideStripXPadding, SideStripYPadding } from './util.js'
 
 export function createSurfaceSchema(
 	capabilities: HostCapabilities,
@@ -49,38 +50,51 @@ export function createSurfaceSchema(
 					surfaceLayout.controls[control.id] = { row, column, stylePreset: 'wheel' }
 				}
 				break
-			case 'lcd-segment':
-				if (capabilities.supportsNonSquareButtons && device.displayLeftStrip) {
-					// Register each strip as a column of non-square (drawable/pressable) button cells.
-					// The runtime fader/slider mode reuses this same layout, routing the cells to a black hole.
+			case 'lcd-segment': {
+				const stripDisplay = control.id === 'right' ? device.displayRightStrip : device.displayLeftStrip
 
-					const cellWidth = device.displayLeftStrip.width - SideStripXPadding * 2
-					const cellHeight = Math.floor((device.displayLeftStrip.height - SideStripYPadding * 2) / control.rowSpan)
+				if (capabilities.supportsNonSquareButtons && stripDisplay) {
+					// Register both layouts at the same grid coordinates. Their different control ids let the
+					// runtime select which bitmap size is drawn and which ids receive touch events.
+					const nativeWidth = stripDisplay.width - SideStripXPadding * 2
+					const nativeCellHeight = Math.floor((stripDisplay.height - SideStripYPadding * 2) / control.rowSpan)
 
-					const presetId = `strip_${cellWidth}x${cellHeight}`
-					if (!surfaceLayout.stylePresets[presetId]) {
-						surfaceLayout.stylePresets[presetId] = {
-							bitmap: {
-								w: cellWidth,
-								h: cellHeight,
-								format: 'rgb',
-							},
-							// Also request the background colour, so fader/slider mode can tint the fill without
-							// having to sample the button bitmap
-							colors: 'hex',
+					// The custom separated layout intentionally preserves the original 60 x 60
+					// artwork and touch target used by the earlier split-strip implementation.
+					const separatedWidth = stripDisplay.width
+					const physicalCellHeight = Math.floor(stripDisplay.height / control.rowSpan)
+					const separatedCellHeight = Math.min(separatedWidth, physicalCellHeight)
+
+					const layouts: Array<{ layout: StripButtonLayout; width: number; height: number }> = [
+						{ layout: 'native', width: nativeWidth, height: nativeCellHeight },
+						{ layout: 'separated', width: separatedWidth, height: separatedCellHeight },
+					]
+
+					for (const { layout, width, height } of layouts) {
+						const presetId = `strip_${layout}_${width}x${height}`
+						if (!surfaceLayout.stylePresets[presetId]) {
+							surfaceLayout.stylePresets[presetId] = {
+								bitmap: {
+									w: width,
+									h: height,
+									format: 'rgb',
+								},
+								// Also request the background colour for legacy fader/slider mode.
+								colors: 'hex',
+							}
 						}
-					}
 
-					for (let i = 0; i < control.rowSpan; i++) {
-						surfaceLayout.controls[getStripCellControlId(control.id, i)] = {
-							row: row + i,
-							column,
-							stylePreset: presetId,
+						for (let i = 0; i < control.rowSpan; i++) {
+							surfaceLayout.controls[getStripButtonControlId(control.id, i, layout)] = {
+								row: row + i,
+								column,
+								stylePreset: presetId,
+							}
 						}
 					}
 				} else {
 					// Older host without non-square button support: single control, driven as a fader/slider.
-					// Fetch rgb for the touch interaction
+					// Fetch rgb for the touch interaction.
 					surfaceLayout.controls[control.id] = {
 						row,
 						column,
@@ -88,6 +102,7 @@ export function createSurfaceSchema(
 					}
 				}
 				break
+			}
 			default:
 				assertNever(control)
 				break

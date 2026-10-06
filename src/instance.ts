@@ -9,14 +9,8 @@ import {
 	createModuleLogger,
 } from '@companion-surface/base'
 import { LoupedeckBufferFormat, LoupedeckDevice, LoupedeckDisplayId, RGBColor } from '@loupedeck/node'
-import {
-	getStripCellControlId,
-	parseStripCellControlId,
-	SideStripXPadding,
-	SideStripYPadding,
-	stripIdFromScreen,
-	type StripId,
-} from './util.js'
+import { getStripButtonControlId, parseStripButtonControlId, type StripButtonLayout } from './strip-layout.js'
+import { SideStripXPadding, SideStripYPadding, stripIdFromScreen, type StripId } from './util.js'
 import { ImageWriteQueue } from './write-queue.js'
 
 interface DisplayFaderValue {
@@ -27,6 +21,7 @@ interface DisplayFaderValue {
 interface StripCellDrawItem {
 	stripId: StripId
 	cellIndex: number
+	layout: StripButtonLayout
 	image: Uint8Array
 }
 
@@ -43,11 +38,11 @@ export class LoupedeckWrapper implements SurfaceInstance {
 
 	/** Configured strip mode. Only meaningful when #supportsSplitButtons is true */
 	#configStripMode: 'buttons' | 'slider' = 'buttons'
+	#separatedStripButtons = false
 	/** Tracks the currently pressed strip cell control id per active touch id, to release the correct cell */
 	#pressedStripCells = new Map<number, string>()
-	/** Last image drawn for each strip cell (keyed by cell control id), so buttons can be repainted on mode switch */
+	/** Last image supplied for every native and separated strip control, used to redraw after layout changes */
 	#stripCellImages = new Map<string, Uint8Array>()
-
 	/** Coalescing queue for fader draws, keyed by strip display, so fast dragging can't fall behind */
 	readonly #faderDrawQueue = new ImageWriteQueue<StripDisplayId, DisplayFaderValue>(
 		async (display, values) => this.#drawFaderValue(display, values),
@@ -55,7 +50,7 @@ export class LoupedeckWrapper implements SurfaceInstance {
 	)
 	/** Coalescing queue for strip button cell draws, keyed by cell control id */
 	readonly #stripDrawQueue = new ImageWriteQueue<string, StripCellDrawItem>(
-		async (_key, item) => this.#drawStripCellButton(item.stripId, item.cellIndex, item.image),
+		async (_key, item) => this.#drawStripCellButton(item),
 		(key, e) => this.#logger.error(`Drawing strip cell ${key} failed: ${e}`),
 	)
 
@@ -77,6 +72,10 @@ export class LoupedeckWrapper implements SurfaceInstance {
 		if (!this.#useTouchStrips) return 'none'
 		if (!this.#supportsSplitButtons) return 'slider'
 		return this.#configStripMode
+	}
+
+	get #activeStripButtonLayout(): StripButtonLayout {
+		return this.#separatedStripButtons ? 'separated' : 'native'
 	}
 
 	public constructor(
@@ -183,18 +182,24 @@ export class LoupedeckWrapper implements SurfaceInstance {
 
 	async updateConfig(config: Record<string, any>): Promise<void> {
 		const prevEffectiveMode = this.#effectiveStripMode
+		const prevSeparated = this.#separatedStripButtons
 
 		this.#invertFaderValues = !!config.invertFaderValues
 		this.#configStripMode = config.lcdStripMode === 'slider' ? 'slider' : 'buttons'
 
+		this.#separatedStripButtons = !!config.separatedStripButtons
+
 		const nextEffectiveMode = this.#effectiveStripMode
 
 		if (nextEffectiveMode === 'slider') {
-			// Covers both an invert change and switching into slider mode - redraw the fader graphics
 			this.#faderDrawQueue.queue(LoupedeckDisplayId.Left, this.#displayFaderValues[LoupedeckDisplayId.Left])
+
 			this.#faderDrawQueue.queue(LoupedeckDisplayId.Right, this.#displayFaderValues[LoupedeckDisplayId.Right])
-		} else if (prevEffectiveMode === 'slider' && nextEffectiveMode === 'buttons') {
-			// Clear the fader graphics and repaint the button cells from their cached images
+		} else if (
+			nextEffectiveMode === 'buttons' &&
+			(prevEffectiveMode === 'slider' || prevSeparated !== this.#separatedStripButtons)
+		) {
+			// Clear the old fader or button layout before repainting from the cached bitmap set.
 			await this.#blankStrips()
 			this.#redrawStripButtons()
 		}
@@ -213,10 +218,11 @@ export class LoupedeckWrapper implements SurfaceInstance {
 		await this.#deck.blankDevice(true, true)
 	}
 	async draw(_signal: AbortSignal, drawProps: SurfaceDrawProps): Promise<void> {
-		// Split lcd-segment strip cells use synthetic control ids which are not present in device.controls
-		const stripCell = parseStripCellControlId(drawProps.controlId)
+		// Split lcd-segment strip cells use synthetic control ids which are not present in device.controls.
+		// Both native full-height and separated square controls are registered at the same grid coordinates.
+		const stripCell = parseStripButtonControlId(drawProps.controlId)
 		if (stripCell) {
-			this.#drawStripCell(stripCell.stripId, stripCell.cellIndex, drawProps)
+			this.#drawStripCell(stripCell.stripId, stripCell.cellIndex, stripCell.layout, drawProps)
 			return
 		}
 
@@ -310,70 +316,113 @@ export class LoupedeckWrapper implements SurfaceInstance {
 		}
 	}
 
-	/** Map a touch Y coordinate on a strip to the control id of the cell it falls within */
+	/** Map a touch Y coordinate on a strip to the active native or separated control id */
 	#stripCellControlIdForTouch(stripId: StripId, y: number): string | null {
 		const strip = this.#stripDisplay(stripId)
 		if (!strip) return null
 
-		const cellIndex = Math.max(0, Math.min(strip.rowSpan - 1, Math.floor((y / strip.height) * strip.rowSpan)))
-		return getStripCellControlId(stripId, cellIndex)
+		const layout = this.#activeStripButtonLayout
+
+		if (layout === 'native') {
+			const clampedY = Math.max(0, Math.min(strip.height - 1, y))
+			const cellIndex = Math.max(0, Math.min(strip.rowSpan - 1, Math.floor((clampedY / strip.height) * strip.rowSpan)))
+
+			return getStripButtonControlId(stripId, cellIndex, layout)
+		}
+
+		const cellHeight = strip.height / strip.rowSpan
+		const clampedY = Math.max(0, Math.min(strip.height - 1, y))
+		const cellIndex = Math.max(0, Math.min(strip.rowSpan - 1, Math.floor(clampedY / cellHeight)))
+		const activeHeight = Math.min(strip.width, cellHeight)
+		const positionInsideCell = clampedY - cellIndex * cellHeight
+		const margin = Math.floor((cellHeight - activeHeight) / 2)
+
+		if (positionInsideCell < margin || positionInsideCell >= margin + activeHeight) {
+			return null
+		}
+
+		return getStripButtonControlId(stripId, cellIndex, layout)
 	}
 
-	/** Draw a single strip cell, per the effective strip mode */
-	#drawStripCell(stripId: StripId, cellIndex: number, drawProps: SurfaceDrawProps): void {
+	/** Cache and, when active, draw one native or separated strip control */
+	#drawStripCell(stripId: StripId, cellIndex: number, layout: StripButtonLayout, drawProps: SurfaceDrawProps): void {
 		const strip = this.#stripDisplay(stripId)
 		if (!strip) return
 
-		// Cache the image regardless of mode, so the buttons can be repainted when switching into buttons mode
-		if (drawProps.image) this.#stripCellImages.set(getStripCellControlId(stripId, cellIndex), drawProps.image)
+		const controlId = getStripButtonControlId(stripId, cellIndex, layout)
 
-		if (this.#effectiveStripMode === 'buttons') {
-			if (!drawProps.image) return
-			this.#stripDrawQueue.queue(getStripCellControlId(stripId, cellIndex), {
+		if (drawProps.image) {
+			this.#stripCellImages.set(controlId, drawProps.image)
+		}
+
+		if (this.#effectiveStripMode === 'buttons' && layout === this.#activeStripButtonLayout) {
+			const sourceImage = this.#stripCellImages.get(controlId)
+			if (!sourceImage) return
+
+			this.#stripDrawQueue.queue(controlId, {
 				stripId,
 				cellIndex,
-				image: drawProps.image,
+				layout,
+				image: sourceImage,
 			})
-		} else if (this.#effectiveStripMode === 'slider') {
-			// Slider mode routes the button cells to a black hole, but the top cell's background colour
-			// (requested via the style preset) is used to tint the fader fill.
-			if (cellIndex === 0) {
-				const color = parseColor(drawProps.color)
-				this.#displayFaderValues[strip.display].color = { red: color.r, green: color.g, blue: color.b }
-				this.#faderDrawQueue.queue(strip.display, this.#displayFaderValues[strip.display])
+		} else if (this.#effectiveStripMode === 'slider' && layout === 'native' && cellIndex === 0) {
+			const color = parseColor(drawProps.color)
+
+			this.#displayFaderValues[strip.display].color = {
+				red: color.r,
+				green: color.g,
+				blue: color.b,
 			}
+
+			this.#faderDrawQueue.queue(strip.display, this.#displayFaderValues[strip.display])
 		}
 	}
 
-	/** Draw a cached/provided image to a strip cell region as a button */
-	async #drawStripCellButton(stripId: StripId, cellIndex: number, image: Uint8Array): Promise<void> {
-		const strip = this.#stripDisplay(stripId)
+	/** Draw a cached/provided bitmap to the active strip layout, ignoring stale queued draws */
+	async #drawStripCellButton(item: StripCellDrawItem): Promise<void> {
+		if (this.#effectiveStripMode !== 'buttons' || item.layout !== this.#activeStripButtonLayout) return
+
+		const strip = this.#stripDisplay(item.stripId)
 		if (!strip) return
 
-		const cellHeight = Math.floor((strip.height - SideStripYPadding * 2) / strip.rowSpan)
+		const nativeWidth = strip.width - SideStripXPadding * 2
+		const nativeCellHeight = Math.floor((strip.height - SideStripYPadding * 2) / strip.rowSpan)
+		const physicalCellHeight = Math.floor(strip.height / strip.rowSpan)
+
+		const drawWidth = item.layout === 'native' ? nativeWidth : strip.width
+		const drawHeight = item.layout === 'native' ? nativeCellHeight : Math.min(strip.width, physicalCellHeight)
+		const drawX = item.layout === 'native' ? SideStripXPadding : 0
+		const drawY =
+			item.layout === 'native'
+				? SideStripYPadding + item.cellIndex * nativeCellHeight
+				: item.cellIndex * physicalCellHeight + Math.floor((physicalCellHeight - drawHeight) / 2)
+
 		await this.#deck
-			.drawBuffer(
-				strip.display,
-				image,
-				LoupedeckBufferFormat.RGB,
-				strip.width - SideStripXPadding * 2,
-				cellHeight,
-				SideStripXPadding,
-				cellIndex * cellHeight + SideStripYPadding,
-			)
+			.drawBuffer(strip.display, item.image, LoupedeckBufferFormat.RGB, drawWidth, drawHeight, drawX, drawY)
 			.catch((e) => {
-				this.#logger.error(`Drawing strip cell ${stripId}-${cellIndex} to loupedeck failed: ${e}`)
+				this.#logger.error(`Drawing strip cell ${item.stripId}-${item.cellIndex} to loupedeck failed: ${e}`)
 			})
 	}
 
-	/** Repaint the strip button cells from the cached images (used when switching into buttons mode) */
+	/** Repaint the selected strip layout from the bitmaps Companion last supplied */
 	#redrawStripButtons(): void {
+		const layout = this.#activeStripButtonLayout
+
 		for (const stripId of ['left', 'right'] as const) {
 			const strip = this.#stripDisplay(stripId)
 			if (!strip) continue
-			for (let i = 0; i < strip.rowSpan; i++) {
-				const image = this.#stripCellImages.get(getStripCellControlId(stripId, i))
-				if (image) this.#stripDrawQueue.queue(getStripCellControlId(stripId, i), { stripId, cellIndex: i, image })
+
+			for (let cellIndex = 0; cellIndex < strip.rowSpan; cellIndex++) {
+				const controlId = getStripButtonControlId(stripId, cellIndex, layout)
+				const sourceImage = this.#stripCellImages.get(controlId)
+				if (!sourceImage) continue
+
+				this.#stripDrawQueue.queue(controlId, {
+					stripId,
+					cellIndex,
+					layout,
+					image: sourceImage,
+				})
 			}
 		}
 	}
