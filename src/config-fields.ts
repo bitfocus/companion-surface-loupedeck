@@ -1,5 +1,48 @@
 import type { SomeCompanionInputField } from '@companion-surface/base'
 
+export const HapticFeedbackConfigId = 'hapticFeedback'
+export const HapticFeedbackIntensityConfigId = 'hapticFeedbackIntensity'
+
+/**
+ * Milliseconds before the click is cut short. The motor only gets stronger the longer it runs,
+ * so the delay is the intensity. Medium was selected by feel on a Loupedeck Live S.
+ */
+export const HapticFeedbackIntensityDelays = { light: 3, medium: 5, strong: 8 } as const
+export type HapticFeedbackIntensity = keyof typeof HapticFeedbackIntensityDelays
+export const DefaultHapticFeedbackIntensity: HapticFeedbackIntensity = 'medium'
+
+/**
+ * Extra milliseconds before a hold's click is cut short. A finger already resting on the key
+ * damps the click when a hold fires, so it needs more than a tap. Selected by feel at Medium
+ * on a Loupedeck Live S.
+ */
+export const HapticFeedbackHoldExtraMs = 3
+
+/** Build the master haptic setting independently of optional touch-strip support. */
+export function buildHapticFeedbackConfigFields(supported: boolean): SomeCompanionInputField[] {
+	if (!supported) return []
+
+	return [
+		{
+			id: HapticFeedbackConfigId,
+			type: 'checkbox',
+			label: 'Enable haptic feedback',
+			default: true,
+		},
+		{
+			id: HapticFeedbackIntensityConfigId,
+			type: 'dropdown',
+			label: 'Haptic feedback intensity',
+			default: DefaultHapticFeedbackIntensity,
+			choices: [
+				{ id: 'light', label: 'Light' },
+				{ id: 'medium', label: 'Medium' },
+				{ id: 'strong', label: 'Strong' },
+			],
+		},
+	]
+}
+
 /**
  * Build the per-surface config fields for models with touch strips.
  *
