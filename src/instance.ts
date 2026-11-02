@@ -18,6 +18,7 @@ import {
 	type StripId,
 } from './util.js'
 import { ImageWriteQueue } from './write-queue.js'
+import { Haptics } from './haptics.js'
 
 interface DisplayFaderValue {
 	color: RGBColor
@@ -40,6 +41,7 @@ export class LoupedeckWrapper implements SurfaceInstance {
 	readonly #surfaceId: string
 	readonly #useTouchStrips: boolean
 	readonly #supportsSplitButtons: boolean
+	readonly #haptics: Haptics
 
 	/** Configured strip mode. Only meaningful when #supportsSplitButtons is true */
 	#configStripMode: 'buttons' | 'slider' = 'buttons'
@@ -92,13 +94,16 @@ export class LoupedeckWrapper implements SurfaceInstance {
 		this.#surfaceId = surfaceId
 		this.#useTouchStrips = useTouchStrips
 		this.#supportsSplitButtons = supportsSplitButtons
+		this.#haptics = new Haptics(deck, this.#logger)
 
 		this.#deck.on('error', (e) => context.disconnect(e))
 
 		this.#deck.on('down', (control) => {
+			this.#haptics.press(control.id)
 			context.keyDownById(control.id)
 		})
 		this.#deck.on('up', (control) => {
+			this.#haptics.release(control.id)
 			context.keyUpById(control.id)
 		})
 		this.#deck.on('rotate', (control, delta) => {
@@ -111,6 +116,7 @@ export class LoupedeckWrapper implements SurfaceInstance {
 		this.#deck.on('touchstart', (data) => {
 			for (const touch of data.changedTouches) {
 				if (touch.target.control !== undefined && touch.target.screen === LoupedeckDisplayId.Center) {
+					this.#haptics.press(touch.target.control.id)
 					context.keyDownById(touch.target.control.id)
 				} else if (touch.target.screen == LoupedeckDisplayId.Wheel) {
 					const wheelControl = this.#deck.controls.find((c) => c.type === 'wheel')
@@ -128,6 +134,7 @@ export class LoupedeckWrapper implements SurfaceInstance {
 		this.#deck.on('touchend', (data) => {
 			for (const touch of data.changedTouches) {
 				if (touch.target.control !== undefined && touch.target.screen === LoupedeckDisplayId.Center) {
+					this.#haptics.release(touch.target.control.id)
 					context.keyUpById(touch.target.control.id)
 				} else if (touch.target.screen == LoupedeckDisplayId.Wheel) {
 					const wheelControl = this.#deck.controls.find((c) => c.type === 'wheel')
@@ -176,6 +183,7 @@ export class LoupedeckWrapper implements SurfaceInstance {
 		await this.blank()
 	}
 	async close(): Promise<void> {
+		this.#haptics.close()
 		await this.#deck.blankDevice(true, true).catch(() => null)
 
 		await this.#deck.close()
@@ -184,6 +192,7 @@ export class LoupedeckWrapper implements SurfaceInstance {
 	async updateConfig(config: Record<string, any>): Promise<void> {
 		const prevEffectiveMode = this.#effectiveStripMode
 
+		this.#haptics.updateConfig(config)
 		this.#invertFaderValues = !!config.invertFaderValues
 		this.#configStripMode = config.lcdStripMode === 'slider' ? 'slider' : 'buttons'
 

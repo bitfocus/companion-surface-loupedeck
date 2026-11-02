@@ -4,6 +4,7 @@ import { generatePincodeMap } from './pincode.js'
 import { LoupedeckWrapper } from './instance.js'
 import { createSurfaceSchema } from './surface-schema.js'
 import { buildTouchStripConfigFields } from './config-fields.js'
+import { buildHapticConfigFields } from './haptics.js'
 
 const StreamDeckPlugin: SurfacePlugin<LoupedeckDeviceInfo> = {
 	init: async (): Promise<void> => {
@@ -52,7 +53,10 @@ const StreamDeckPlugin: SurfacePlugin<LoupedeckDeviceInfo> = {
 				brightness: true,
 				surfaceLayout: createSurfaceSchema(context.capabilities, loupedeck),
 				pincodeMap: generatePincodeMap(loupedeck.modelId),
-				configFields: useTouchStrips ? buildTouchStripConfigFields(supportsSplitButtons) : null,
+				configFields: [
+					...(useTouchStrips ? buildTouchStripConfigFields(supportsSplitButtons) : []),
+					...buildHapticConfigFields(),
+				],
 				transferVariables: useTouchStrips
 					? [
 							{
