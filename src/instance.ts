@@ -152,27 +152,19 @@ export class LoupedeckWrapper implements SurfaceInstance {
 
 		if (this.#useTouchStrips) {
 			this.#deck.on('touchmove', (data) => {
-				// The fader/slider only responds to touch movement in slider mode; in buttons mode the strip
-				// touches are handled as button presses by touchstart/touchend instead.
-				if (this.#effectiveStripMode !== 'slider') return
+				const mode = this.#effectiveStripMode
+				for (const touch of data.changedTouches) {
+					const display = touch.target.screen
+					if (display !== LoupedeckDisplayId.Left && display !== LoupedeckDisplayId.Right) continue
 
-				const touch = data.changedTouches.find(
-					(touch) => touch.target.screen == LoupedeckDisplayId.Right || touch.target.screen == LoupedeckDisplayId.Left,
-				)
-				if (touch && touch.target.screen == LoupedeckDisplayId.Right) {
 					const val = Math.min(touch.y + 7, 256) // map the touch screen height of 270 to 256 by capping top and bottom 7 pixels
+					const variable = display === LoupedeckDisplayId.Left ? 'leftFaderValueVariable' : 'rightFaderValueVariable'
+					context.sendVariableValue(variable, this.#invertFaderValues ? 256 - val : val)
 
-					context.sendVariableValue('rightFaderValueVariable', this.#invertFaderValues ? 256 - val : val)
-					this.#displayFaderValues[LoupedeckDisplayId.Right].value = val
-
-					this.#faderDrawQueue.queue(LoupedeckDisplayId.Right, this.#displayFaderValues[LoupedeckDisplayId.Right])
-				} else if (touch && touch.target.screen == LoupedeckDisplayId.Left) {
-					const val = Math.min(touch.y + 7, 256) // map the touch screen height of 270 to 256 by capping top and bottom 7 pixels
-
-					context.sendVariableValue('leftFaderValueVariable', this.#invertFaderValues ? 256 - val : val)
-					this.#displayFaderValues[LoupedeckDisplayId.Left].value = val
-
-					this.#faderDrawQueue.queue(LoupedeckDisplayId.Left, this.#displayFaderValues[LoupedeckDisplayId.Left])
+					// In buttons mode the strip cells are pressed by touchstart/touchend; only the position is reported here
+					if (mode !== 'slider') continue
+					this.#displayFaderValues[display].value = val
+					this.#faderDrawQueue.queue(display, this.#displayFaderValues[display])
 				}
 			})
 		}

@@ -21,9 +21,9 @@ export function buildTouchStripConfigFields(supportsSplitButtons: boolean): Some
 				value:
 					'The left and right LCD strips can be used either as 3 stacked buttons, or as a legacy touch fader/slider. ' +
 					'Choose the behaviour below. In "Split buttons" mode the 3 button slots for each strip can be drawn to and ' +
-					'pressed, and the fader value variables/invert option below do nothing. In "Fader / slider" mode the strip ' +
-					'acts as a single touch fader, the 3 button slots do nothing, and the fader value variables and invert ' +
-					'option below apply.',
+					'pressed, and sliding along the strip still reports the touch position to the fader value variables. ' +
+					'In "Fader / slider" mode the strip acts as a single touch fader and the 3 button slots do nothing. ' +
+					'The invert option applies to the fader values in both modes.',
 			},
 			{
 				id: 'lcdStripMode',
@@ -55,8 +55,6 @@ export function buildTouchStripConfigFields(supportsSplitButtons: boolean): Some
 		default: false,
 		label: 'Invert Fader Values',
 		tooltip: 'If set, the fader values will be inverted, with the value being between 256 and 0.',
-		// On capable hosts this only applies in fader/slider mode
-		isVisibleExpression: supportsSplitButtons ? `$(options:lcdStripMode) == 'slider'` : undefined,
 	})
 
 	return fields

@@ -64,14 +64,16 @@ const StreamDeckPlugin: SurfacePlugin<LoupedeckDeviceInfo> = {
 								type: 'input',
 								name: 'Variable to store Left Fader value to',
 								description:
-									'This will be a value between 0 and 256 representing the position of the last touch on the left strip.',
+									'This will be a value between 0 and 256 representing the position of the last touch on the left strip. ' +
+									'In split buttons mode it updates while sliding along the strip.',
 							},
 							{
 								id: 'rightFaderValueVariable',
 								type: 'input',
 								name: 'Variable to store Right Fader value to',
 								description:
-									'This will be a value between 0 and 256 representing the position of the last touch on the right strip.',
+									'This will be a value between 0 and 256 representing the position of the last touch on the right strip. ' +
+									'In split buttons mode it updates while sliding along the strip.',
 							},
 						]
 					: undefined,
