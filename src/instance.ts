@@ -133,6 +133,7 @@ export class LoupedeckWrapper implements SurfaceInstance {
 		})
 		this.#deck.on('touchend', (data) => {
 			for (const touch of data.changedTouches) {
+				this.#haptics.slideEnd(touch.id)
 				if (touch.target.control !== undefined && touch.target.screen === LoupedeckDisplayId.Center) {
 					this.#haptics.release(touch.target.control.id)
 					context.keyUpById(touch.target.control.id)
@@ -156,6 +157,7 @@ export class LoupedeckWrapper implements SurfaceInstance {
 				for (const touch of data.changedTouches) {
 					const display = touch.target.screen
 					if (display !== LoupedeckDisplayId.Left && display !== LoupedeckDisplayId.Right) continue
+					this.#haptics.slide(touch.id, touch.y)
 
 					const val = Math.min(touch.y + 7, 256) // map the touch screen height of 270 to 256 by capping top and bottom 7 pixels
 					const variable = display === LoupedeckDisplayId.Left ? 'leftFaderValueVariable' : 'rightFaderValueVariable'
