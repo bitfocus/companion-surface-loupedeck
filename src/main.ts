@@ -3,7 +3,20 @@ import { getModelName, listLoupedecks, LoupedeckDeviceInfo, LoupedeckModelId, op
 import { generatePincodeMap } from './pincode.js'
 import { LoupedeckWrapper } from './instance.js'
 import { createSurfaceSchema } from './surface-schema.js'
-import { buildTouchStripConfigFields } from './config-fields.js'
+import { buildHapticFeedbackConfigFields, buildTouchStripConfigFields } from './config-fields.js'
+
+export function supportsHapticFeedback(model: LoupedeckModelId): boolean {
+	switch (model) {
+		case LoupedeckModelId.LoupedeckCtV1:
+		case LoupedeckModelId.LoupedeckCtV2:
+		case LoupedeckModelId.LoupedeckLive:
+		case LoupedeckModelId.LoupedeckLiveS:
+		case LoupedeckModelId.RazerStreamController:
+			return true
+		case LoupedeckModelId.RazerStreamControllerX:
+			return false
+	}
+}
 
 const StreamDeckPlugin: SurfacePlugin<LoupedeckDeviceInfo> = {
 	init: async (): Promise<void> => {
@@ -37,6 +50,7 @@ const StreamDeckPlugin: SurfacePlugin<LoupedeckDeviceInfo> = {
 		context: SurfaceContext,
 	): Promise<OpenSurfaceResult> => {
 		const loupedeck = await openLoupedeck(pluginInfo.path)
+		const hapticFeedbackSupported = supportsHapticFeedback(loupedeck.modelId)
 
 		const useTouchStrips =
 			pluginInfo.model === LoupedeckModelId.LoupedeckCtV1 ||
@@ -45,14 +59,26 @@ const StreamDeckPlugin: SurfacePlugin<LoupedeckDeviceInfo> = {
 			pluginInfo.model === LoupedeckModelId.RazerStreamController
 
 		const supportsSplitButtons = useTouchStrips && !!context.capabilities.supportsNonSquareButtons
+		const configFields = [
+			...buildHapticFeedbackConfigFields(hapticFeedbackSupported),
+			...(useTouchStrips ? buildTouchStripConfigFields(supportsSplitButtons) : []),
+		]
 
 		return {
-			surface: new LoupedeckWrapper(surfaceId, loupedeck, context, useTouchStrips, supportsSplitButtons),
+			surface: new LoupedeckWrapper(
+				surfaceId,
+				loupedeck,
+				context,
+				useTouchStrips,
+				supportsSplitButtons,
+				hapticFeedbackSupported,
+			),
 			registerProps: {
 				brightness: true,
+				...(hapticFeedbackSupported ? { controlEvents: true } : {}),
 				surfaceLayout: createSurfaceSchema(context.capabilities, loupedeck),
 				pincodeMap: generatePincodeMap(loupedeck.modelId),
-				configFields: useTouchStrips ? buildTouchStripConfigFields(supportsSplitButtons) : null,
+				configFields: configFields.length > 0 ? configFields : null,
 				transferVariables: useTouchStrips
 					? [
 							{
